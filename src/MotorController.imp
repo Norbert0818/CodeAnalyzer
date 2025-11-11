@@ -1,0 +1,151 @@
+IMPLEMENTATION MotorController
+
+REFINES MotorController_Abstract
+SEES Motor_ctx
+
+CONCRETE_VARIABLES
+    calculated_performance,
+    error1_active,
+    error2_active,
+    error1_inactive_counter,
+    error2_inactive_counter,
+    history_array,
+    history_count,
+    history_next_idx
+
+INVARIANT
+    calculated_performance : PERCENT &
+    error1_active : BOOL &
+    error2_active : BOOL &
+    error1_inactive_counter : 0..error_clear_after &
+    error2_inactive_counter : 0..panic_clear_after &
+    history_array : 1..history_size --> PERCENT &
+    history_count : 0..history_size &
+    history_next_idx : 1..history_size 
+
+
+INITIALISATION
+    calculated_performance := 0 ;
+    error1_active := FALSE ;
+    error2_active := FALSE ;
+    error1_inactive_counter := error_clear_after ;
+    error2_inactive_counter := panic_clear_after ;
+    history_array := (1..history_size) * {0} ; 
+    history_count := 0 ;
+    history_next_idx := 1
+
+OPERATIONS
+
+    calculate_next_performance(performance_demand, error1_signal, error2_signal) =
+    VAR
+        new_e1_active,
+        new_e2_active,
+        new_e1_counter,
+        new_e2_counter,
+        new_performance_value
+    IN
+        new_e1_active := error1_signal;
+        new_e2_active := error2_signal;
+        
+        IF error1_signal = FALSE THEN
+              IF error1_inactive_counter < error_clear_after THEN 
+                    new_e1_counter := error1_inactive_counter + 1 
+              ELSE 
+                    new_e1_counter := error_clear_after 
+              END
+        ELSE
+                new_e1_counter := 0
+        END;
+        
+        IF error2_signal = FALSE THEN
+            IF error2_inactive_counter < panic_clear_after THEN 
+                new_e2_counter := error2_inactive_counter + 1 
+            ELSE 
+                new_e2_counter := panic_clear_after 
+            END
+        ELSE
+            new_e2_counter := 0
+        END;
+        
+        IF new_e2_active = TRUE or new_e2_counter < panic_clear_after THEN
+            new_performance_value := panic_fallback
+        
+        ELSIF new_e1_active = TRUE or new_e1_counter < error_clear_after THEN
+            
+            IF calculated_performance > error_fallback THEN
+                new_performance_value := calculated_performance - max_increment_step
+            ELSE
+                VAR normal_ramp_result IN
+                    IF performance_demand > calculated_performance + max_increment_step THEN
+                        normal_ramp_result := calculated_performance + max_increment_step
+                    ELSIF performance_demand < calculated_performance - max_increment_step THEN
+                        normal_ramp_result := calculated_performance - max_increment_step
+                    ELSE
+                        normal_ramp_result := performance_demand
+                    END;
+                    
+                    IF normal_ramp_result > error_fallback THEN
+                        new_performance_value := error_fallback
+                    ELSE
+                        new_performance_value := normal_ramp_result
+                    END
+                END 
+            END
+
+        ELSE
+            IF performance_demand > calculated_performance + max_increment_step THEN
+                new_performance_value := calculated_performance + max_increment_step
+            ELSIF performance_demand < calculated_performance - max_increment_step THEN
+                new_performance_value := calculated_performance - max_increment_step
+            ELSE
+                new_performance_value := performance_demand
+            END
+        END;
+
+        calculated_performance := new_performance_value;
+        
+        history_array(history_next_idx) := new_performance_value;
+        
+        IF history_next_idx = history_size THEN
+            history_next_idx := 1
+        ELSE
+            history_next_idx := history_next_idx + 1
+        END;
+        
+        IF history_count < history_size THEN
+            history_count := history_count + 1
+        END;
+
+        error1_active := new_e1_active;
+        error2_active := new_e2_active;
+        error1_inactive_counter := new_e1_counter;
+        error2_inactive_counter := new_e2_counter
+
+    END; 
+    
+    min_val, max_val <-- get_performance_extremes =
+    VAR current_max, current_min, idx IN
+        IF history_count > 0 THEN
+            current_max := history_array(1);
+            current_min := history_array(1);
+            idx := 2;
+            WHILE idx <= history_count DO
+                IF history_array(idx) > current_max THEN
+                    current_max := history_array(idx)
+                END;
+                IF history_array(idx) < current_min THEN
+                    current_min := history_array(idx)
+                END;
+                idx := idx + 1
+                
+                
+            END;
+            max_val := current_max;
+            min_val := current_min
+        ELSE
+            max_val := 0; 
+            min_val := 0  
+        END
+    END
+
+END
