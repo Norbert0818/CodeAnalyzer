@@ -268,7 +268,7 @@ Régebben, ha a Vim fejlesztői akartak egy jó C++ kódkiegészítést, meg kel
 
 ### 6.2 Az LSP megoldása: A kliens és a szerver szétválasztása
 
-Az LSP egy egyszerű, de zseniális ötleten alapul: válasszuk szét a "buta" szerkesztőt (a klienst) az "okos" nyelvi elemzőtől (a szervertől).
+Az LSP egy egyszerű ötleten alapul: válasszuk szét a "buta" szerkesztőt (a klienst) az "okos" nyelvi elemzőtől (a szervertől).
 
 Ahelyett, hogy minden szerkesztő saját elemzőt írna, elég egyetlen "nyelvi szervert" írni egy adott nyelvhez (pl. clangd a C++-hoz, Pylance a Pythonhoz). Ezután bármelyik szerkesztő, amelyik "beszéli" az LSP protokollt, képes kommunikálni ezzel az egyetlen szerverrel.
 
